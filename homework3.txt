@@ -1,0 +1,69 @@
+void R2Image::
+Blur(double sigma)
+{
+
+  //reset 
+  R2Image temp_img(*this);
+  // Gaussian blur of the image. Separable solution is preferred
+
+  
+  int size = 6*sigma+1;
+  int half_size = size/2;
+  vector<double> kernel;
+  //normalize 
+  double sum = 0.0;
+
+
+  // set up the kernel
+  for (int i = 0; i < size; i++){
+    int x = i-half_size;
+    double value =(exp(-(x*x)/(2*sigma*sigma)))/sqrt(2*3.14159265*sigma*sigma);
+    kernel.push_back(value);
+    sum+=value;
+  }
+
+
+  double newSum = 0.0; 
+  //normalize the kernel
+  for (int i = 0; i < size; i++){
+    // cout << kernel[i] << endl;
+    kernel[i]= kernel[i]/sum;
+    newSum+=kernel[i];
+    cout << kernel[i] << endl;
+  }
+
+  //filter horizontally 
+  for (int rh = 0; rh < width; rh++) {
+    for (int ch = 0; ch < height; ch++) {
+      //new value 
+      R2Pixel* temp_pixel = new R2Pixel();
+      for (int pos = -(half_size); pos <= half_size; pos++) {
+          int col_pos= ch+pos;
+          if (col_pos<0) col_pos=0;
+          if (col_pos>=height)col_pos=height-1;          
+          *temp_pixel += kernel[pos+half_size]*temp_img.Pixel(rh,col_pos);
+          
+      }
+      Pixel(rh,ch)= *temp_pixel;
+      Pixel(rh,ch).Clamp(1);
+      
+    }
+  }
+  R2Image temp_horizontal(*this);
+
+  //filter vertically 
+  for (int cv = 0; cv < height;cv++ ){
+    for (int rv= 0; rv < width; rv++){
+      R2Pixel* temp_pixel = new R2Pixel();
+      for (int pos = -(half_size); pos <= half_size; pos++) {
+          int row_pos= rv+pos;
+          if (row_pos<0) row_pos=0;
+          if (row_pos>= width)row_pos = width-1;
+          *temp_pixel += kernel[pos+half_size]*temp_horizontal.Pixel(row_pos,cv);
+          
+      }
+      Pixel(rv,cv)= *temp_pixel;
+      Pixel(rv,cv).Clamp(1);
+    }
+  }
+}

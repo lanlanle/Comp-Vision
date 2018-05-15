@@ -1,0 +1,119 @@
+void R2Image::
+Harris(double sigma)
+{
+    // Harris corner detector. Make use of the previously developed filters, such as the Gaussian blur filter
+  // Output should be 50% grey at flat regions, white at corners and black/dark near edges
+
+  R2Image original(*this);
+
+  R2Image Img1(*this);
+  Img1.SobelX();
+  R2Image Img2(*this);
+  Img2.SobelY();
+  R2Image Img3(*this);
+  Img3.SobelX();
+
+
+  for (int i = 0; i < width; i++) {
+      for (int j = 0 ; j< height; j++) {
+          
+        Img3.Pixel(i,j) = Img3.Pixel(i,j)* Img2.Pixel(i,j);
+        Img1.Pixel(i,j) = Img1.Pixel(i,j)* Img1.Pixel(i,j);
+        Img2.Pixel(i,j) = Img2.Pixel(i,j)* Img2.Pixel(i,j);
+
+      }
+  }
+
+
+  // set up the image with 
+
+  Img1.Blur(sigma);
+  Img2.Blur(sigma);
+  Img3.Blur(sigma);
+
+  for (int i=0; i < width; i++){
+    for (int j=0; j<height;j++) {
+      R2Pixel* temp_pixel = new R2Pixel();
+      *temp_pixel = Img1.Pixel(i,j)*Img2.Pixel(i,j)-Img3.Pixel(i,j)*Img3.Pixel(i,j)-0.04*((Img1.Pixel(i,j)+Img2.Pixel(i,j))*(Img1.Pixel(i,j)+Img2.Pixel(i,j)));
+
+      double r = temp_pixel->Red()+0.5;
+      double g = temp_pixel->Green()+0.5;
+      double b = temp_pixel->Blue()+0.5;
+      double a = temp_pixel->Alpha();
+
+      R2Pixel* adjusted_pixel = new R2Pixel(r,g,b,a);
+      Pixel(i,j) = *adjusted_pixel;
+      Pixel(i,j).Clamp();
+      
+    }
+  }
+
+  //feature description
+
+  vector< vector<double> > corners;  
+
+  //calculate Harris Score for every pixel
+  for (int i=5; i<width-5; i++){
+    for (int j=5; j<height-5;j++){
+      vector<double> item;
+
+      double harris_score = Pixel(i,j).Red()+Pixel(i,j).Green()+Pixel(i,j).Blue();
+      item.push_back(harris_score);
+      item.push_back(i);
+      item.push_back(j);
+      corners.push_back(item);
+
+    }
+  }
+  //Sort to get 150 pixels with highest Harris score 
+
+  sort(corners.begin(),corners.end(),[](const vector<double>& a, const std::vector<double>& b) {
+  return a[0] > b[0];
+});
+
+  // choose 150 separate features 
+  vector< vector<double> > displayed_pixels;
+  int counter= 0; // how many items already in the displayed_pixel list
+  int currentItem = 0;// items being looked at 
+
+  while (counter<=150 && currentItem < corners.size()) {
+      bool isOutOfBound=true;
+      for (int i=0; i<displayed_pixels.size(); i++) {
+        // if the current pixel being looked at is not out of bound 
+        if (corners[currentItem][1] <= displayed_pixels[i][1]+10 && 
+            corners[currentItem][1] >= displayed_pixels[i][1]-10 &&
+            corners[currentItem][2] <= displayed_pixels[i][2]+10 && 
+            corners[currentItem][2] >= displayed_pixels[i][2]-10) {
+            isOutOfBound = false;
+            break;
+        }
+      }
+     
+      if (isOutOfBound){
+        displayed_pixels.push_back(corners[currentItem]);
+        counter++;
+      } 
+      currentItem++;
+  }
+
+  //draw the pixel 
+
+  for (int pixel = 0; pixel< displayed_pixels.size();pixel++) {
+    //draw scquares around that feature 
+    for (int i = -5; i <=5; i++){
+      original.Pixel(displayed_pixels[pixel][1]+i,displayed_pixels[pixel][2]-5).Reset(1,0,0,1);
+      original.Pixel(displayed_pixels[pixel][1]+i,displayed_pixels[pixel][2]+5).Reset(1,0,0,1);
+      original.Pixel(displayed_pixels[pixel][1]-5,displayed_pixels[pixel][2]+i).Reset(1,0,0,1);
+      original.Pixel(displayed_pixels[pixel][1]+5,displayed_pixels[pixel][2]+i).Reset(1,0,0,1);
+    }
+    
+  }
+  // Clamp the pixels
+
+  for (int i =0; i < width; i++){
+    for (int j = 0; j< height; j++) {
+      Pixel(i,j)= original.Pixel(i,j);
+      Pixel(i,j).Clamp();
+    }
+  }
+}

@@ -1,0 +1,132 @@
+ void R2Image::
+blendOtherImageTranslated(R2Image * otherImage)
+{
+  // find at least 100 features on this image, and another 100 on the "otherImage". Based on these,
+  // compute the matching translation (pixel precision is OK), and blend the translated "otherImage" 
+  // into this image with a 50% opacity.
+
+  vector<vector<double>> imgA_features = otherImage->Harris(2.0);
+
+  vector<vector<double> > matching_features;
+
+  
+  int searchAreaHalfWidth = width * 0.1;
+  int searchAreaHalfHeight = height * 0.1;
+   cout << searchAreaHalfWidth << endl;
+   cout << searchAreaHalfHeight << endl;
+
+  //search for all feature in vector
+  for (int feature = 0; feature < imgA_features.size(); feature++) {
+    double minSum = 100000; 
+    double minX = 0;
+    double minY = 0;
+    for (int i = -searchAreaHalfWidth; i <=searchAreaHalfWidth;i++) {
+      for (int j = -searchAreaHalfHeight; j <= searchAreaHalfHeight; j++) {
+
+        if (imgA_features[feature][1]+i >= 0 && imgA_features[feature][1]+i< width &&
+                imgA_features[feature][2]+j>=0 && imgA_features[feature][2]+j<height){
+
+                 // start a window
+                  R2Pixel *ssd = new R2Pixel();
+                  for (int k = -3; k <=3; k++) {
+                    for (int l = -3; l <=3; l++) {
+                      if (imgA_features[feature][1]+k >= 0 && imgA_features[feature][1]+k < width &&
+                          imgA_features[feature][2]+l >=0 && imgA_features[feature][2]+l < height &&
+                          imgA_features[feature][1]+i+k >= 0 && imgA_features[feature][1]+i+k < width &&
+                          imgA_features[feature][2]+j+l>=0 && imgA_features[feature][2]+j+l<height) 
+             
+                          *ssd += (otherImage->Pixel(imgA_features[feature][1]+k,imgA_features[feature][2]+l)-Pixel(imgA_features[feature][1]+i+k,imgA_features[feature][2]+j+l))*(otherImage->Pixel(imgA_features[feature][1]+k,imgA_features[feature][2]+l)-Pixel(imgA_features[feature][1]+i+k,imgA_features[feature][2]+j+l));          
+                      
+                    }
+                  }
+                  double sum = ssd->Red()+ssd->Green()+ssd->Blue();
+
+                  if (sum < minSum) {
+                    minSum = sum; 
+                    minX = imgA_features[feature][1]+i;
+                    minY = imgA_features[feature][2]+j;
+                  
+                  }
+
+
+        }
+    
+       
+        
+      }
+    }
+
+    vector<double> item;
+    item.push_back(minX);
+    item.push_back(minY);
+    matching_features.push_back(item);
+  }
+
+
+
+  // use random to find a vector item 
+  int max_inlier = 0;
+  vector < vector<double> > max_inlier_set;
+  vector < vector<double> > min_outlier_set; 
+
+  for (int trial=0; trial < 200; trial++) {
+    int randomIndex = rand() % matching_features.size();
+
+  
+   
+    //values for the  sample vector 
+    double sampleX = imgA_features[randomIndex][1]-matching_features[randomIndex][0];
+    double sampleY = imgA_features[randomIndex][2]-matching_features[randomIndex][1];
+    
+
+    vector<vector<double> > inlier;
+    vector <vector<double> > outlier;        
+    for (int v = 0; v < matching_features.size();v++){
+
+        //values for the current vector 
+        double currentX = imgA_features[v][1]-matching_features[v][0];
+        double currentY = imgA_features[v][2]-matching_features[v][1];
+
+        double difference = sqrt(pow(currentX-sampleX,2)+pow(currentY-sampleY,2));
+        cout << difference << endl;
+
+        
+
+
+        vector<double> motion_vector;
+        motion_vector.push_back(imgA_features[v][1]);
+        motion_vector.push_back(matching_features[v][0]);
+        motion_vector.push_back(imgA_features[v][2]);
+        motion_vector.push_back(matching_features[v][1]);
+
+        if (difference< 4.0) inlier.push_back(motion_vector);
+        else outlier.push_back(motion_vector);
+
+    }
+    if (inlier.size() > max_inlier){
+        max_inlier = inlier.size();
+        max_inlier_set.clear();
+        min_outlier_set.clear();
+
+        for (int a= 0; a < inlier.size(); a++) max_inlier_set.push_back(inlier[a]);
+        for (int b= 0; b < outlier.size(); b++) min_outlier_set.push_back(outlier[b]);
+
+    }
+
+  }
+  cout <<"INLIER: " << max_inlier << endl;
+
+  //draw inlier set
+
+  for (int a = 0 ; a < max_inlier_set.size(); a++) {
+    
+       line(max_inlier_set[a][0],max_inlier_set[a][1],max_inlier_set[a][2],max_inlier_set[a][3],0,1,0);
+  }
+
+  // draw outlier 
+  for (int a = 0 ; a < min_outlier_set.size(); a++) {
+    
+      line(min_outlier_set[a][0],min_outlier_set[a][1],min_outlier_set[a][2],min_outlier_set[a][3],1,0,0);
+  }
+}
+

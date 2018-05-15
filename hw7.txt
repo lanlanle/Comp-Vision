@@ -1,0 +1,92 @@
+void R2Image::
+blendOtherImageTranslated(R2Image * otherImage)
+{
+	// find at least 100 features on this image, and another 100 on the "otherImage". Based on these,
+	// compute the matching translation (pixel precision is OK), and blend the translated "otherImage" 
+	// into this image with a 50% opacity.
+
+
+  // R2Image harris_img(*this);
+  vector<vector<double>> imgA_features = otherImage->Harris(2.0);
+
+  vector<vector<double> > matching_features;
+
+  // for (int i = 0; i <imgA_features.size(); i++){
+  //   cout << imgA_features[i][0] << " "<<imgA_features[i][1] <<" "<< imgA_features[i][2]<< endl;
+  // }
+  int searchAreaHalfWidth = width * 0.1;
+  int searchAreaHalfHeight = height * 0.1;
+   cout << searchAreaHalfWidth << endl;
+   cout << searchAreaHalfHeight << endl;
+
+  //search for all feature in vector
+  for (int feature = 0; feature < imgA_features.size(); feature++) {
+    cout << "feature: " << imgA_features[feature][1]<< " " <<imgA_features[feature][2] << endl;
+    // means that we initiate min here 
+    double minSum = 100000; 
+    double minX = 0;
+    double minY = 0;
+    for (int i = -searchAreaHalfWidth; i <searchAreaHalfWidth;i++) {
+      for (int j = -searchAreaHalfHeight; j < searchAreaHalfHeight; j++) {
+        // cout << feature << " "<< i+imgA_features[feature][1] <<" " << j+imgA_features[feature][2] << endl;
+        // start a window
+        R2Pixel *ssd = new R2Pixel();
+        for (int k = -6; k <6; k++) {
+          for (int l = -6; l <6; l++) {
+            if (imgA_features[feature][1]+k >= 0 && imgA_features[feature][1]+k < width &&
+                imgA_features[feature][2]+l >=0 && imgA_features[feature][2]+l < height &&
+                imgA_features[feature][1]+i+k >= 0 && imgA_features[feature][1]+i+k < width &&
+                imgA_features[feature][2]+j+l>=0 && imgA_features[feature][2]+j+l<height) {
+
+                // means that something is wrong with the formula, ssd = 0 does not means that 
+                *ssd += (otherImage->Pixel(imgA_features[feature][1]+k,imgA_features[feature][2]+l)-Pixel(imgA_features[feature][1]+i+k,imgA_features[feature][2]+j+l))*(otherImage->Pixel(imgA_features[feature][1]+k,imgA_features[feature][2]+l)-Pixel(imgA_features[feature][1]+i+k,imgA_features[feature][2]+j+l));
+            }
+            
+          }
+        }
+        // cout << ssd->Red() << " " << ssd->Green() << " "<< ssd->Blue() << endl;
+
+        double sum = ssd->Red()+ssd->Green()+ssd->Blue();
+        if (sum < minSum) {
+          minSum = sum; 
+          minX = imgA_features[feature][1]+i;
+          minY = imgA_features[feature][2]+j;
+        
+        }
+      }
+    }
+    // cout << " here " << endl;
+    // after searching for a matching  feature 
+    vector<double> item;
+    item.push_back(minX);
+    item.push_back(minY);
+    matching_features.push_back(item);
+  }
+
+  for (int i = 0; i <imgA_features.size(); i++){
+    cout <<imgA_features[i][1] <<"-"<< imgA_features[i][2]<<" " << matching_features[i][0] <<"-" <<matching_features[i][1] << endl;
+  }
+
+
+  //draw
+
+  for (int pixel = 0; pixel< matching_features.size();pixel++) {
+    //draw scquares around that feature 
+     // Pixel(matching_features[pixel][0],matching_features[pixel][1]).Reset(1,0,0,1);
+    int pixelX = matching_features[pixel][0];
+    int pixelY = matching_features[pixel][1];
+    if (pixelX-5 < 0) pixelX = pixelX + 5;
+    if (pixelX+5 >= width) pixelX = pixelX - 6;
+    if (pixelY-5 < 0) pixelY= pixelY + 5;
+    if (pixelY+5 >= height) pixelY = pixelY - 6;
+
+    for (int i = -5; i <=5; i++){
+      Pixel(pixelX+i,pixelY-5).Reset(1,0,0,1);
+      Pixel(pixelX+i,pixelY+5).Reset(1,0,0,1);
+      Pixel(pixelX-5,pixelY+i).Reset(1,0,0,1);
+      Pixel(pixelX+5,pixelY+i).Reset(1,0,0,1);
+    }
+    
+  }
+  
+}

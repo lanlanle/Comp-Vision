@@ -1,0 +1,124 @@
+void R2Image::
+ChangeSaturation(double factor)
+{
+  // Changes the saturation of an image
+  // Find a formula that changes the saturation without affecting the image brightness
+  for (int i = 0; i < width; i++) {
+    for (int j = 0;  j < height; j++) {
+      double r =Pixel(i,j).Red();
+      double g =Pixel(i,j).Green();
+      double b =Pixel(i,j).Blue();
+      double a = Pixel(i,j).Alpha();
+      double grayscale =0.2989*r + 0.5870*g + 0.1140*b; 
+      double newRed = r*factor-grayscale*(factor-1);
+      double newGreen = g*factor-grayscale*(factor-1);
+      double newBlue = b*factor-grayscale*(factor-1);
+
+      if(newRed>1) newRed = 1;
+      if(newGreen >1 ) newGreen = 1;
+      if(newBlue >1) newBlue = 1;
+
+      if(newRed< 0) newRed = 0;
+      if(newGreen < 0) newGreen = 0;
+      if(newBlue < 0) newBlue = 0;
+      Pixel(i,j).Reset(newRed,newGreen,newBlue,a);
+    }
+  }
+}
+
+
+
+void R2Image::
+SobelX(void)
+{
+
+  //change to grayscale
+  for (int i = 0; i < width; i++) {
+    for (int j = 0;  j < height; j++) {
+      double r =Pixel(i,j).Red();
+      double g =Pixel(i,j).Green();
+      double b =Pixel(i,j).Blue();
+      double a = Pixel(i,j).Alpha();
+      double grayscale =0.2989*r + 0.5870*g + 0.1140*b; 
+
+      if(grayscale>1) grayscale = 1;
+      if(grayscale< 0) grayscale = 0;
+
+      Pixel(i,j).Reset(grayscale,grayscale,grayscale,a);
+      Pixel.Clamp(1);
+    }
+  }
+  //make a copy of the image 
+  R2Image temp_img(*this);
+  // Apply the Sobel oprator to the image in X direction
+  for (int i = 1; i < width-1; i++) {
+    for (int j = 1;  j < height-1; j++) {
+      
+      double newRed = temp_img.Pixel(i-1,j-1).Red()*(-1)+temp_img.Pixel(i-1,j).Red()*(-2)+temp_img.Pixel(i-1,j+1).Red()*(-1)+temp_img.Pixel(i+1,j-1).Red()+temp_img.Pixel(i+1,j).Red()*2+temp_img.Pixel(i+1,j+1).Red();
+      double newGreen = temp_img.Pixel(i-1,j-1).Green()*(-1)+temp_img.Pixel(i-1,j).Green()*(-2)+temp_img.Pixel(i-1,j+1).Green()*(-1)+temp_img.Pixel(i+1,j-1).Green()+temp_img.Pixel(i+1,j).Green()*2+temp_img.Pixel(i+1,j+1).Green();
+      double newBlue = temp_img.Pixel(i-1,j-1).Blue()*(-1)+temp_img.Pixel(i-1,j).Blue()*(-2)+temp_img.Pixel(i-1,j+1).Blue()*(-1)+temp_img.Pixel(i+1,j-1).Blue()+temp_img.Pixel(i+1,j).Blue()*2+temp_img.Pixel(i+1,j+1).Blue();
+      double alpha = Pixel(i,j).Alpha();
+      Pixel(i,j).Reset(newRed,newGreen,newBlue,alpha);
+
+    }
+  }
+}
+
+void R2Image::
+SobelY(void)
+{
+  //change img to grayscale
+  for (int i = 0; i < width; i++) {
+    for (int j = 0;  j < height; j++) {
+      double r =Pixel(i,j).Red();
+      double g =Pixel(i,j).Green();
+      double b =Pixel(i,j).Blue();
+      double a = Pixel(i,j).Alpha();
+      double grayscale =0.2989*r + 0.5870*g + 0.1140*b; 
+
+      if(grayscale>1) grayscale = 1;
+      if(grayscale< 0) grayscale = 0;
+
+      Pixel(i,j).Reset(grayscale,grayscale,grayscale,a);
+    }
+  }
+  //how to make a copy of the image 
+  R2Image temp_img(*this);
+  // Apply the Sobel oprator to the image in  direction
+  for (int i = 1; i < width-1; i++) {
+    for (int j = 1;  j < height-1; j++) {
+      double newRed = temp_img.Pixel(i-1,j-1).Red()*(-1)+temp_img.Pixel(i,j-1).Red()*(-2)+temp_img.Pixel(i+1,j-1).Red()*(-1)+temp_img.Pixel(i-1,j+1).Red()+temp_img.Pixel(i,j+1).Red()*2+temp_img.Pixel(i+1,j+1).Red();
+      double newGreen = temp_img.Pixel(i-1,j-1).Green()*(-1)+temp_img.Pixel(i,j-1).Green()*(-2)+temp_img.Pixel(i+1,j-1).Green()*(-1)+temp_img.Pixel(i-1,j+1).Green()+temp_img.Pixel(i,j+1).Green()*2+temp_img.Pixel(i+1,j+1).Green();
+      double newBlue = temp_img.Pixel(i-1,j-1).Blue()*(-1)+temp_img.Pixel(i,j-1).Blue()*(-2)+temp_img.Pixel(i+1,j-1).Blue()*(-1)+temp_img.Pixel(i-1,j+1).Blue()+temp_img.Pixel(i,j+1).Blue()*2+temp_img.Pixel(i+1,j+1).Blue();
+      double alpha = Pixel(i,j).Alpha();
+
+      Pixel(i,j).Reset(newRed,newGreen,newBlue,alpha);
+      Pixel(i,j).Clamp(1);
+
+    }
+  }
+}
+
+void R2Image::
+Sharpen()
+{
+  
+  R2Image temp_img(*this);
+ // Sharpen an image using a linear filter. Use a kernel of your choosing.
+  for (int i = 1; i < width-1; i++) {
+    for (int j = 1;  j < height-1; j++) {
+      
+      double newRed = temp_img.Pixel(i,j-1).Red()*(-1)+temp_img.Pixel(i-1,j).Red()*(-1)+temp_img.Pixel(i,j+1).Red()*(-1)+temp_img.Pixel(i+1,j).Red()*(-1)+temp_img.Pixel(i,j).Red()*5;
+      double newGreen = temp_img.Pixel(i,j-1).Green()*(-1)+temp_img.Pixel(i-1,j).Green()*(-1)+temp_img.Pixel(i,j+1).Green()*(-1)+temp_img.Pixel(i+1,j).Green()*(-1)+temp_img.Pixel(i,j).Green()*5;
+      double newBlue = temp_img.Pixel(i,j-1).Blue()*(-1)+temp_img.Pixel(i-1,j).Blue()*(-1)+temp_img.Pixel(i,j+1).Blue()*(-1)+temp_img.Pixel(i+1,j).Blue()*(-1)+temp_img.Pixel(i,j).Blue()*5;
+      double alpha = Pixel(i,j).Alpha();
+
+      Pixel(i,j).Reset(newRed,newGreen,newBlue,alpha);
+      Pixel(i,j).Clamp(1);
+
+    }
+  }
+}
+
+
+

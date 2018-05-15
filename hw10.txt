@@ -1,0 +1,350 @@
+vector<double> R2Image::svdHelper(vector<vector <double> > A, vector<vector <double> > B, int run){
+
+   // instead of one, choose 4 here 
+ 
+  vector<R2Point> original_vector;
+  vector<R2Point> transformed_vector;
+
+
+  if (run==4){
+
+    vector <double> random_vector;
+    for (int i = 0 ; i< run; i++) {
+      
+      int randomIndex = rand() % B.size();
+
+      random_vector.push_back(randomIndex);
+      // cout << randomIndex << endl;
+    }
+    for (int i = 0; i < random_vector.size(); i++) {
+      R2Point a(A[random_vector[i]][1],A[random_vector[i]][2]);
+      original_vector.push_back(a);
+    }
+    
+
+      for (int i = 0; i < random_vector.size(); i++) {
+        R2Point b(B[random_vector[i]][0],B[random_vector[i]][1]);
+        transformed_vector.push_back(b);
+      }
+
+  } else {
+      for (int i = 0 ; i<A.size(); i++){
+        R2Point a(A[i][1],A[i][2]);
+        original_vector.push_back(a);
+        R2Point b(B[i][0],B[i][1]);
+        transformed_vector.push_back(b);
+      }
+
+      
+  }
+
+    
+    
+
+
+    //all the inlier points 
+    double** linEquations = dmatrix(1,run*2,1,9);
+
+    for (int i = 0; i<original_vector.size();i++) {
+
+      linEquations[i*2+1][1] = 0.0;
+      linEquations[i*2+1][2] = 0.0;
+      linEquations[i*2+1][3] = 0.0;
+      linEquations[i*2+1][4] = -original_vector[i][0];
+      linEquations[i*2+1][5] = -original_vector[i][1];
+      linEquations[i*2+1][6] = -1.0;
+      linEquations[i*2+1][7] = transformed_vector[i][1]*original_vector[i][0];
+      linEquations[i*2+1][8] = transformed_vector[i][1]*original_vector[i][1];
+      linEquations[i*2+1][9] = transformed_vector[i][1];
+
+      linEquations[i*2+2][1] = original_vector[i][0];
+      linEquations[i*2+2][2] = original_vector[i][1];
+      linEquations[i*2+2][3] = 1.0;
+      linEquations[i*2+2][4] = 0.0;
+      linEquations[i*2+2][5] = 0.0;
+      linEquations[i*2+2][6] = 0.0;
+      linEquations[i*2+2][7] = -transformed_vector[i][0]*original_vector[i][0];
+      linEquations[i*2+2][8] = -transformed_vector[i][0]*original_vector[i][1];
+      linEquations[i*2+2][9] = -transformed_vector[i][0];
+
+    }
+
+
+
+
+  // // compute the SVD
+  double singularValues[10]; // 1..6
+  double** nullspaceMatrix = dmatrix(1,9,1,9);
+  svdcmp(linEquations, 8, 9, singularValues, nullspaceMatrix);
+
+
+  
+
+  // find the smallest singular value:
+  int smallestIndex = 1;
+  for(int i=2;i<=9;i++) if(singularValues[i]<singularValues[smallestIndex]) smallestIndex=i;
+
+
+  //WE GET H VALUES HERE! 
+    vector<double> H_values;
+
+  for (int i = 1; i<=9; i++) {
+        // cout << "The H value " << i << ": " << nullspaceMatrix[i][smallestIndex] << endl;
+        H_values.push_back(nullspaceMatrix[i][smallestIndex]);
+  }
+  return H_values;
+   
+
+}
+
+
+void R2Image::
+blendOtherImageHomography(R2Image * otherImage)
+{
+  // find at least 100 features on this image, and another 100 on the "otherImage". Based on these,
+  // compute the matching homography, and blend the transformed "otherImage" into this image with a 50% opacity.
+  // fprintf(stderr, "fit other image using a homography and blend imageB over imageA\n");
+  // return;
+
+
+
+  //PRODUCE 150 VECTOR TRANSLATION 
+   R2Image temp(*this);
+
+   R2Image newA(*otherImage);
+
+
+
+
+
+
+  vector<vector<double>> imgA_features = otherImage->Harris(2.0);
+
+  vector<vector<double> > matching_features;
+
+  
+  int searchAreaHalfWidth = width * 0.1;
+  int searchAreaHalfHeight = height * 0.1;
+   cout << searchAreaHalfWidth << endl;
+   cout << searchAreaHalfHeight << endl;
+
+  //search for all feature in vector
+  for (int feature = 0; feature < imgA_features.size(); feature++) {
+    double minSum = 100000; 
+    double minX = 0;
+    double minY = 0;
+    for (int i = -searchAreaHalfWidth; i <= searchAreaHalfWidth;i++) {
+      for (int j = -searchAreaHalfHeight; j <= searchAreaHalfHeight; j++) {
+
+        if (imgA_features[feature][1]+i >= 0 && imgA_features[feature][1]+i< width &&
+                imgA_features[feature][2]+j>=0 && imgA_features[feature][2]+j<height){
+
+                 // start a window
+                  R2Pixel *ssd = new R2Pixel();
+                  for (int k = -3; k <=3; k++) {
+                    for (int l = -3; l <=3; l++) {
+                      if (imgA_features[feature][1]+k >= 0 && imgA_features[feature][1]+k < width &&
+                          imgA_features[feature][2]+l >=0 && imgA_features[feature][2]+l < height &&
+                          imgA_features[feature][1]+i+k >= 0 && imgA_features[feature][1]+i+k < width &&
+                          imgA_features[feature][2]+j+l>=0 && imgA_features[feature][2]+j+l<height) 
+             
+                          *ssd += (otherImage->Pixel(imgA_features[feature][1]+k,imgA_features[feature][2]+l)-Pixel(imgA_features[feature][1]+i+k,imgA_features[feature][2]+j+l))*(otherImage->Pixel(imgA_features[feature][1]+k,imgA_features[feature][2]+l)-Pixel(imgA_features[feature][1]+i+k,imgA_features[feature][2]+j+l));          
+                      
+                    }
+                  }
+                  double sum = ssd->Red()+ssd->Green()+ssd->Blue();
+
+                  if (sum < minSum) {
+                    minSum = sum; 
+                    minX = imgA_features[feature][1]+i;
+                    minY = imgA_features[feature][2]+j;
+                  
+                  }
+        }  
+        
+      }
+    }
+
+    vector<double> item;
+    item.push_back(minX);
+    item.push_back(minY);
+    matching_features.push_back(item);
+  }
+
+
+
+  // use random to find a vector item 
+  int max_inlier = 0;
+  vector < vector<double> > max_inlier_orig_set;
+  vector < vector<double> > max_inlier_trans_set; 
+  vector <double> temp_H_matrix; 
+
+
+
+
+  // create the model of H matrix first here 
+
+
+
+  for (int trial=0; trial < 1000; trial++) {
+
+  vector<double> hValuesBA = svdHelper(imgA_features,matching_features,4);
+  cout << " " << endl;
+
+
+  //COMPARE TO SEE IF THE TRANSLATION IS CORRECT 
+
+  vector<vector<double> > inlier_orig;
+  vector <vector<double> > inlier_trans;   
+  for (int i = 0; i < matching_features.size(); i++)   {
+        
+        double xB = hValuesBA[0]*imgA_features[i][1]+hValuesBA[1]*imgA_features[i][2]+hValuesBA[2];
+        double yB = hValuesBA[3]*imgA_features[i][1]+hValuesBA[4]*imgA_features[i][2]+hValuesBA[5];
+        double wB = hValuesBA[6]*imgA_features[i][1]+hValuesBA[7]*imgA_features[i][2]+hValuesBA[8];
+       
+        
+        double scaled_xB = xB/wB;
+        double scaled_yB = yB/wB; 
+
+       
+        double distance = sqrt(pow(matching_features[i][0]-scaled_xB,2)+pow(matching_features[i][1]-scaled_yB,2));
+
+
+        vector<double> motion_vector1;
+        motion_vector1.push_back(imgA_features[i][0]);
+        motion_vector1.push_back(imgA_features[i][1]);
+        motion_vector1.push_back(imgA_features[i][2]);
+        
+
+        vector<double> motion_vector2;
+        motion_vector2.push_back(matching_features[i][0]);
+        motion_vector2.push_back(matching_features[i][1]);
+
+
+        if ( distance <=5) {
+          inlier_orig.push_back(motion_vector1);
+          inlier_trans.push_back(motion_vector2);
+        }
+        
+    }
+    
+    if (inlier_orig.size() > max_inlier){
+        max_inlier = inlier_orig.size();
+        max_inlier_orig_set.clear();
+        max_inlier_trans_set.clear();
+        temp_H_matrix.clear();
+    
+        for (int a= 0; a < inlier_orig.size(); a++){
+           max_inlier_orig_set.push_back(inlier_orig[a]);
+           max_inlier_trans_set.push_back(inlier_trans[a]);
+        }  
+        for (int d = 0; d<9; d++) temp_H_matrix.push_back(hValuesBA[d]);
+
+    }
+
+  }
+
+  cout << " MATRIX_VALUES" << endl;
+  for (int i = 0; i < 9; i++) cout << temp_H_matrix[i] << " ";
+  cout << " "<< endl;
+
+  cout <<"INLIER: " << max_inlier << endl;
+  cout << "REAL SIZE" << max_inlier_orig_set.size() << endl;
+
+  vector<vector<double> > vecA;
+  vector<vector<double> > vecB;
+  for (int i = 0; i < max_inlier; i++){
+    vecA.push_back(max_inlier_orig_set[i]);
+    vecB.push_back(max_inlier_trans_set[i]);
+  }
+
+  vector<double> best_H_matrix= svdHelper(max_inlier_orig_set,max_inlier_trans_set,max_inlier_orig_set.size());
+
+
+  //use best inverse matrix to reconstruct a new image 
+  cout << " MATRIX_VALUES" << endl;
+  for (int i = 0; i < 9; i++) cout << best_H_matrix[i] << " ";
+  cout << " "<< endl;
+
+
+  //compute matrix inverse
+  vector<vector <double>> mat; 
+  for (int i= 0; i<3;i++) {
+    vector<double> line;
+    for (int j= 0;j<3; j++) {
+      line.push_back(best_H_matrix[3*i+j]);
+    }
+    mat.push_back(line);
+  }
+
+
+  vector<double>inverse_mat;
+  float determinant = mat[0][0]*mat[1][1]*mat[2][2]+mat[0][1]*mat[1][2]*mat[2][0]+mat[0][2]*mat[1][0]*mat[2][1]
+                      -(mat[0][2]*mat[1][1]*mat[2][0]+mat[0][0]*mat[1][2]*mat[2][1]+mat[0][1]*mat[1][0]*mat[2][2]);
+
+
+  double val1 = (mat[1][1]*mat[2][2]-mat[2][1]*mat[1][2])/determinant;
+  inverse_mat.push_back(val1);
+  double val2 = -(mat[0][1]*mat[2][2]-mat[2][1]*mat[0][2])/determinant;
+  inverse_mat.push_back(val2);
+  double val3 = (mat[1][2]*mat[0][1]-mat[1][1]*mat[0][2])/determinant;
+  inverse_mat.push_back(val3);
+  double val4 = -(mat[2][2]*mat[1][0]-mat[2][0]*mat[1][2])/determinant;
+  inverse_mat.push_back(val4);
+  double val5 = (mat[0][0]*mat[2][2]-mat[2][0]*mat[0][2])/determinant;
+  inverse_mat.push_back(val5);
+  double val6 = -(mat[0][0]*mat[1][2]-mat[0][2]*mat[1][0])/determinant;
+  inverse_mat.push_back(val6);
+  double val7 = (mat[1][0]*mat[2][1]-mat[1][1]*mat[2][0])/determinant;
+  inverse_mat.push_back(val7);
+  double val8 = -(mat[2][1]*mat[0][0]-mat[2][0]*mat[0][1])/determinant;
+  inverse_mat.push_back(val8);
+  double val9 = (mat[1][1]*mat[0][0]-mat[0][1]*mat[1][0])/determinant;
+  inverse_mat.push_back(val9);
+
+
+   cout << "INVERSE_MATRIX" << endl;
+  for (int i = 0; i < 9; i++) cout <<inverse_mat[i] << " ";
+
+  cout << " "<< endl;
+  
+
+
+
+  for (int i = 0; i < width; i++){
+    for (int j = 0; j < height; j++) {
+      double xA = best_H_matrix[0]*i + best_H_matrix[1]*j + best_H_matrix[2];
+      double yA = best_H_matrix[3]*i + best_H_matrix[4]*j + best_H_matrix[5];
+      double wA = best_H_matrix[6]*i + best_H_matrix[7]*j + best_H_matrix[8];
+
+
+      double scaled_xA = xA/wA;
+      double scaled_yA = yA/wA;
+      // cout << scaled_xA << " "<< scaled_yA << endl;
+
+
+      if (scaled_xA>0 && scaled_xA < width && scaled_yA >0 && scaled_yA<height){
+
+          double red = (newA.Pixel(i,j).Red()+temp.Pixel(scaled_xA,scaled_yA).Red())/2;
+          double green = (newA.Pixel(i,j).Green()+temp.Pixel(scaled_xA,scaled_yA).Green())/2;
+          double blue = (newA.Pixel(i,j).Blue()+temp.Pixel(scaled_xA,scaled_yA).Blue())/2;
+
+          R2Pixel *newPix = new R2Pixel(red,green,blue,1);
+          SetPixel(i,j,*newPix); 
+
+
+      } else {
+          R2Pixel *newPix = new R2Pixel(1,1,1,1);
+          SetPixel(i,j,*newPix); 
+
+      }
+    }
+  }
+
+  for (int a = 0 ; a < max_inlier_orig_set.size(); a++) {
+    
+       line(vecA[a][1],vecB[a][0],vecA[a][2],vecB[a][1],0,1,0);
+  }
+
+
+}
