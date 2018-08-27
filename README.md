@@ -2,7 +2,7 @@
 In this project, I implement features tracking and image translating algorithms to replace sky pixels in the video below
 
 
-###Algorithms
+#### Algorithms
 1. Harris Corner Detection to detect remarkable features in the frames of the original video
 2. Sum Squared Difference to track the the features throughout different frames
 3. RANSAC algorithm to find homography matrix that matches features based on parameter estimation
